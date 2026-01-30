@@ -27,7 +27,6 @@ body {
   position: relative;
 }
 
-/* 安全余白を考慮したコンテナ */
 #container {
   text-align: center;
   user-select: none;
@@ -44,15 +43,11 @@ body {
   gap: clamp(8px, 1.5vmin, 16px);
 }
 
-/* 年の表示 - 基準サイズ */
 #year {
   font-size: clamp(16px, 4vmin, 48px);
-  color: white;
   line-height: 1.2;
-  transition: all 0.2s ease;
 }
 
-/* 日付の表示 - 年の2倍 */
 #date {
   font-size: clamp(32px, 8vmin, 96px);
   font-weight: bold;
@@ -60,456 +55,72 @@ body {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  letter-spacing: -0.02em;
-  transition: all 0.2s ease;
 }
 
-#date .num {
-  line-height: 1;
-}
-
-#date .unit {
-  font-size: 0.6em;
-  line-height: 1;
-}
-
-#date .dow {
-  line-height: 1;
-  margin-left: 0;
-}
-
+#date .unit,
 #date .dow-bracket {
   font-size: 0.6em;
-  line-height: 1;
 }
 
-/* 時刻＋音声ボタンのコンテナ */
-#timeContainer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0;
-  transition: all 0.2s ease;
-}
-
-/* 縦向き: 時刻の下にボタン */
-@media (orientation: portrait) {
-  #timeContainer {
-    flex-direction: column;
-    gap: clamp(8px, 2vmin, 16px);
-  }
-}
-
-/* 横向き: 時刻の右にボタン */
-@media (orientation: landscape) {
-  #timeContainer {
-    flex-direction: row;
-    gap: clamp(8px, 2vmin, 20px);
-  }
-}
-
-/* 時刻の表示 - 年の2倍 */
 #time {
   font-size: clamp(32px, 8vmin, 96px);
   color: #00ff00;
   font-weight: bold;
-  line-height: 1.1;
-  transition: all 0.2s ease;
 }
 
-/* 音声ボタン */
-#voiceBtn {
-  min-width: 44px;
-  min-height: 44px;
-  width: clamp(44px, 6vmin, 80px);
-  height: clamp(44px, 6vmin, 80px);
-  border-radius: 50%;
-  background: #ff8c00;
-  border: none;
-  font-size: clamp(20px, 3vmin, 40px);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: opacity 0.2s;
-  flex-shrink: 0;
-}
-
-#voiceBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 強調表示 - 動的に倍率を計算するため、初期値は控えめ */
 .highlight {
   font-weight: 900;
   text-shadow: 0 0 20px currentColor;
 }
-
-/* 診断パネル */
-#diagnostic {
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(50,50,50,0.9);
-  color: #ccc;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: clamp(10px, 1.5vmin, 14px);
-  max-width: 300px;
-  max-height: 400px;
-  overflow-y: auto;
-  z-index: 1000;
-}
-
-#diagnostic.hidden {
-  display: none;
-}
-
-#diagnostic button {
-  margin: 5px 2px;
-  padding: 5px 10px;
-  font-size: clamp(9px, 1.4vmin, 13px);
-  cursor: pointer;
-  background: #555;
-  color: white;
-  border: none;
-  border-radius: 4px;
-}
-
-#diagnostic button:active {
-  background: #777;
-}
-
-#diagLog {
-  margin-top: 10px;
-  font-size: clamp(8px, 1.2vmin, 12px);
-  color: #aaa;
-  max-height: 200px;
-  overflow-y: auto;
-  word-break: break-all;
-}
-
-#showDiagBtn {
-  position: fixed;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(100,100,100,0.6);
-  color: #ddd;
-  border: none;
-  padding: 8px 12px;
-  font-size: clamp(12px, 1.8vmin, 16px);
-  border-radius: 4px;
-  cursor: pointer;
-  z-index: 999;
-}
-
-#showDiagBtn.hidden {
-  display: none;
-}
 </style>
 </head>
+
 <body>
 <div id="container">
   <div id="year"></div>
   <div id="date"></div>
-  <div id="timeContainer">
-    <div id="time"></div>
-    <button id="voiceBtn" onclick="manualSpeak()" ontouchstart="manualSpeak()">🔊</button>
-  </div>
+  <div id="time"></div>
 </div>
-
-<div id="diagnostic">
-  <div><strong>診断パネル</strong></div>
-  <button onclick="testVoice()">音声テスト</button>
-  <button onclick="updateVoiceList()">音声一覧更新</button>
-  <button onclick="hideDiag()">隠す</button>
-  <div id="diagLog"></div>
-</div>
-
-<button id="showDiagBtn" class="hidden" onclick="showDiag()">診</button>
 
 <script>
-let audioCtx = null;
-let userInteracted = false;
-let isSpeaking = false;
-const fallbackMs = 8000;
-
-// 現在の強調要素を記憶
-let currentHighlightedElement = null;
-let originalTransform = '';
-
-function log(msg) {
-  const logEl = document.getElementById('diagLog');
-  const time = new Date().toLocaleTimeString('ja-JP');
-  logEl.innerHTML += `[${time}] ${msg}<br>`;
-  logEl.scrollTop = logEl.scrollHeight;
+/* ===== テスト日時固定 ===== */
+const TEST_MODE = true;
+// 月は0始まり → 10月 = 9
+const TEST_DATE = new Date(2026, 9, 12, 7, 0, 0); // 2026/10/12 07:00
+function getNow() {
+  return TEST_MODE ? new Date(TEST_DATE) : new Date();
 }
-
-function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    log('AudioContext初期化');
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-    log('AudioContext resume');
-  }
-}
-
-function playBeep() {
-  initAudio();
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.frequency.value = 800;
-  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-  osc.start(audioCtx.currentTime);
-  osc.stop(audioCtx.currentTime + 0.1);
-  log('効果音再生');
-}
-
-// 安全な強調表示：はみ出さない最大倍率を計算
-function applySafeHighlight(elementId) {
-  const element = document.getElementById(elementId);
-  if (!element) return;
-
-  // 前回の強調を解除
-  removeSafeHighlight();
-
-  const container = document.getElementById('container');
-  const containerRect = container.getBoundingClientRect();
-  const elementRect = element.getBoundingClientRect();
-
-  // 現在のサイズと余裕を計算
-  const availableWidth = containerRect.width * 0.95; // 95%まで使用可
-  const availableHeight = containerRect.height * 0.95;
-
-  const widthRatio = availableWidth / elementRect.width;
-  const heightRatio = availableHeight / elementRect.height;
-
-  // はみ出さない最大倍率（最大1.15倍まで）
-  const maxScale = Math.min(widthRatio, heightRatio, 1.15);
-  const safeScale = Math.max(1.0, Math.min(maxScale, 1.15));
-
-  // 元のtransformを保存
-  originalTransform = element.style.transform || '';
-
-  // 強調を適用
-  element.classList.add('highlight');
-  element.style.transform = `scale(${safeScale})`;
-  currentHighlightedElement = element;
-
-  log(`強調適用: ${elementId}, scale=${safeScale.toFixed(2)}`);
-}
-
-// 強調を解除
-function removeSafeHighlight() {
-  if (currentHighlightedElement) {
-    currentHighlightedElement.classList.remove('highlight');
-    currentHighlightedElement.style.transform = originalTransform;
-    currentHighlightedElement = null;
-  }
-}
-
-function speakText(text, elementId, preDelay = 0) {
-  return new Promise((resolve) => {
-    if (!('speechSynthesis' in window)) {
-      log('speechSynthesis非対応');
-      resolve();
-      return;
-    }
-
-    // 読み上げ前の待ち時間
-    setTimeout(() => {
-      speechSynthesis.cancel();
-      const ut = new SpeechSynthesisUtterance(text);
-      ut.lang = 'ja-JP';
-      ut.rate = 0.9;
-      ut.pitch = 1.0;
-      ut.volume = 1.0;
-
-      const voices = speechSynthesis.getVoices();
-      const jaVoice = voices.find(v => v.lang.startsWith('ja'));
-      if (jaVoice) ut.voice = jaVoice;
-
-      let ended = false;
-      const timer = setTimeout(() => {
-        if (!ended) {
-          log(`タイムアウト: ${text}`);
-          speechSynthesis.cancel();
-          removeSafeHighlight();
-          ended = true;
-          resolve();
-        }
-      }, fallbackMs);
-
-      ut.onstart = () => {
-        log(`読み上げ開始: ${text}`);
-        if (elementId) applySafeHighlight(elementId);
-      };
-
-      ut.onend = () => {
-        if (!ended) {
-          clearTimeout(timer);
-          log(`読み上げ終了: ${text}`);
-          removeSafeHighlight();
-          ended = true;
-          resolve();
-        }
-      };
-
-      ut.onerror = (e) => {
-        if (!ended) {
-          clearTimeout(timer);
-          log(`読み上げエラー: ${e.error}`);
-          removeSafeHighlight();
-          ended = true;
-          resolve();
-        }
-      };
-
-      speechSynthesis.speak(ut);
-      if (speechSynthesis.paused) speechSynthesis.resume();
-    }, preDelay);
-  });
-}
-
-async function speakAll() {
-  if (isSpeaking) {
-    log('読み上げ中のため無視');
-    return;
-  }
-  isSpeaking = true;
-  document.getElementById('voiceBtn').disabled = true;
-
-  playBeep();
-
-  // 読み上げ開始前の待ち時間（300ms）
-  await new Promise(r => setTimeout(r, 300));
-
-  const now = new Date();
-  const year = now.getFullYear();
-  const reiwa = year - 2018;
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
-  const dow = now.getDay();
-  const dowText = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'][dow];
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-
-  // 個別に読み上げ：年 → 月日 → 曜日 → 時刻
-  await speakText(`令和${reiwa}年、西暦${year}年`, 'year', 0);
-  await new Promise(r => setTimeout(r, 300));
-
-  await speakText(`${month}月${day}日`, 'date', 0);
-  await new Promise(r => setTimeout(r, 300));
-
-  await speakText(dowText, 'date', 0);
-  await new Promise(r => setTimeout(r, 300));
-
-  await speakText(`${hour}時${minute}分`, 'time', 0);
-
-  isSpeaking = false;
-  document.getElementById('voiceBtn').disabled = false;
-  log('読み上げ完了');
-}
-
-function manualSpeak() {
-  if (!userInteracted) {
-    userInteracted = true;
-    initAudio();
-    log('ユーザー操作検出（自動読み上げ有効化）');
-  }
-  speakAll();
-}
-
-function testVoice() {
-  if (!userInteracted) {
-    userInteracted = true;
-    initAudio();
-    log('音声テスト（初回操作）');
-  }
-  speakText('ハロー', null, 0);
-}
-
-function updateVoiceList() {
-  const voices = speechSynthesis.getVoices();
-  log(`音声数: ${voices.length}`);
-  voices.forEach((v, i) => {
-    log(`${i}: ${v.name} (${v.lang})`);
-  });
-}
-
-function hideDiag() {
-  document.getElementById('diagnostic').classList.add('hidden');
-  document.getElementById('showDiagBtn').classList.remove('hidden');
-}
-
-function showDiag() {
-  document.getElementById('diagnostic').classList.remove('hidden');
-  document.getElementById('showDiagBtn').classList.add('hidden');
-}
+/* ========================== */
 
 function updateDisplay() {
-  const now = new Date();
+  const now = getNow();
+
   const year = now.getFullYear();
   const reiwa = year - 2018;
   const month = now.getMonth() + 1;
   const day = now.getDate();
   const dow = now.getDay();
-  const dowStr = ['日', '月', '火', '水', '木', '金', '土'][dow];
-  const hour = String(now.getHours()).padStart(2, '0');
-  const minute = String(now.getMinutes()).padStart(2, '0');
+  const dowStr = ['日','月','火','水','木','金','土'][dow];
 
-  document.getElementById('year').textContent = `令和${reiwa}年（${year}年）`;
+  const hour = String(now.getHours()).padStart(2,'0');
+  const minute = String(now.getMinutes()).padStart(2,'0');
+
+  document.getElementById('year').textContent =
+    `令和${reiwa}年（${year}年）`;
 
   let dateColor = '#ffff00';
   if (dow === 0) dateColor = '#ff0000';
   if (dow === 6) dateColor = '#00ffff';
 
   document.getElementById('date').innerHTML = `
-    <span class="num" style="color:${dateColor}">${month}</span><span class="unit" style="color:${dateColor}">月</span>
-    <span class="num" style="color:${dateColor}">${day}</span><span class="unit" style="color:${dateColor}">日</span>
-    <span class="dow" style="color:${dateColor}"><span class="dow-bracket">(</span>${dowStr}<span class="dow-bracket">)</span></span>
+    <span style="color:${dateColor}">${month}月${day}日(${dowStr})</span>
   `;
 
-  document.getElementById('time').textContent = `${hour}:${minute}`;
-}
-
-function checkAutoSpeak() {
-  if (!userInteracted) return;
-  const now = new Date();
-  const h = now.getHours();
-  const m = now.getMinutes();
-  if (m === 0 && (h === 7 || h === 12 || h === 18)) {
-    log(`自動読み上げ: ${h}時`);
-    speakAll();
-  }
-}
-
-function scheduleNextUpdate() {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), now.getMinutes() + 1, 0, 0);
-  const delay = next - now;
-  setTimeout(() => {
-    updateDisplay();
-    checkAutoSpeak();
-    scheduleNextUpdate();
-  }, delay);
-}
-
-if ('speechSynthesis' in window) {
-  speechSynthesis.addEventListener('voiceschanged', () => {
-    log('音声リスト変更検出');
-  });
+  document.getElementById('time').textContent =
+    `${hour}:${minute}`;
 }
 
 updateDisplay();
-scheduleNextUpdate();
-log('BIGカレンダ起動（改修版）');
 </script>
 </body>
 </html>
